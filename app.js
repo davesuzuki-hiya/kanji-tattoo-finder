@@ -695,7 +695,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create result items HTML
         let resultItemsHTML = '';
         
-        results.forEach(result => {
+        results.forEach((result, index) => {
             // Skip results with very low match percentages after adjustment
             if (result.matchPercentage < 25) {
                 return;
@@ -703,6 +703,10 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const kanjiCard = document.createElement('div');
             kanjiCard.className = 'kanji-card';
+            kanjiCard.dataset.index = index; // Store the result index for lookup
+            kanjiCard.setAttribute('role', 'button');
+            kanjiCard.setAttribute('tabindex', '0');
+            kanjiCard.setAttribute('aria-label', `View details for kanji ${result.kanji}`);
             
             // Determine card status class based on match percentage and negative connotations
             if (result.negativeConnotations.exists && result.negativeMatch && result.negativeMatch.exists) {
@@ -795,6 +799,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
             }
             
+            // Add view details button
+            const viewDetailsHtml = `
+            <div class="view-details-button">
+                <button class="view-details">View Detailed Information</button>
+            </div>`;
+            
             kanjiCard.innerHTML = `
                 <div class="kanji-character">${result.kanji}</div>
                 <div class="match-percentage">${result.matchPercentage}% Match</div>
@@ -808,6 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div><strong>Common usage:</strong> ${result.commonUsage}</div>
                 </div>
                 ${warningHtml}
+                ${viewDetailsHtml}
             `;
             
             resultItemsHTML += kanjiCard.outerHTML;
@@ -819,11 +830,262 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="results-container">
                 ${resultItemsHTML}
             </div>
+            <div id="kanji-detail-modal" class="modal hidden">
+                <div class="modal-content">
+                    <span class="close-modal">&times;</span>
+                    <div id="kanji-detail-container"></div>
+                </div>
+            </div>
         `;
         
         resultsContainer.innerHTML = resultsContainerContent;
+        
+        // Add event listeners to kanji cards
+        document.querySelectorAll('.kanji-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const resultIndex = parseInt(this.dataset.index);
+                showKanjiDetail(results[resultIndex]);
+            });
+            
+            // Also handle keyboard navigation for accessibility
+            card.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    const resultIndex = parseInt(this.dataset.index);
+                    showKanjiDetail(results[resultIndex]);
+                    e.preventDefault();
+                }
+            });
+        });
+        
+        // Add event listener to close button in modal
+        const closeModalButton = document.querySelector('.close-modal');
+        if (closeModalButton) {
+            closeModalButton.addEventListener('click', function() {
+                document.getElementById('kanji-detail-modal').classList.add('hidden');
+                document.body.classList.remove('modal-open');
+            });
+        }
+        
+        // Close modal when clicking outside the content
+        const modal = document.getElementById('kanji-detail-modal');
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.classList.add('hidden');
+                    document.body.classList.remove('modal-open');
+                }
+            });
+        }
     }
     
+    /**
+     * Show detailed information about a kanji in a modal window
+     * @param {object} kanjiData - The kanji data object
+     */
+    function showKanjiDetail(kanjiData) {
+        const modal = document.getElementById('kanji-detail-modal');
+        const detailContainer = document.getElementById('kanji-detail-container');
+        
+        // Fetch additional details if needed
+        fetchKanjiDetails(kanjiData.kanji)
+            .then(details => {
+                // Combine our data with fetched details
+                const combinedData = { ...kanjiData, ...details };
+                
+                // Create the detailed view HTML
+                const detailHTML = `
+                    <div class="kanji-detail-view">
+                        <div class="kanji-detail-header">
+                            <div class="detail-kanji">${combinedData.kanji}</div>
+                            <div class="detail-meanings">
+                                <h2>${combinedData.matchedMeaning}</h2>
+                                <div class="all-meanings">
+                                    ${combinedData.meaningMatches.map(m => 
+                                        `<span class="meaning-tag">${m.meaning}</span>`
+                                    ).join('')}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-sections">
+                            <section class="detail-section">
+                                <h3>Pronunciation</h3>
+                                <div class="pronunciation-container">
+                                    <div class="on-yomi">${combinedData.pronunciation.split(',')[0]}</div>
+                                    ${combinedData.pronunciation.includes(',') ? 
+                                        `<div class="kun-yomi">${combinedData.pronunciation.split(',')[1]}</div>` : ''}
+                                </div>
+                            </section>
+                            
+                            <section class="detail-section">
+                                <h3>Stroke Order</h3>
+                                <div class="stroke-order-container">
+                                    ${combinedData.strokeOrderImage ? 
+                                        `<img src="${combinedData.strokeOrderImage}" alt="Stroke order for ${combinedData.kanji}" class="stroke-order-img">` :
+                                        `<div class="stroke-order-placeholder">Stroke order animation loading...</div>`}
+                                </div>
+                            </section>
+                            
+                            <section class="detail-section">
+                                <h3>Common Words</h3>
+                                <div class="common-words">
+                                    ${combinedData.commonWords ? 
+                                        combinedData.commonWords.map(word => 
+                                            `<div class="common-word">
+                                                <div class="word-kanji">${word.kanji}</div>
+                                                <div class="word-reading">${word.reading}</div>
+                                                <div class="word-meaning">${word.meaning}</div>
+                                            </div>`
+                                        ).join('') : 
+                                        '<p>Loading common words...</p>'}
+                                </div>
+                            </section>
+                            
+                            <section class="detail-section">
+                                <h3>Tattoo Examples</h3>
+                                <div class="tattoo-examples" id="tattoo-examples-container">
+                                    <p>Loading tattoo examples...</p>
+                                    <button id="load-tattoo-examples" class="detail-button">
+                                        View Tattoo Examples
+                                    </button>
+                                </div>
+                            </section>
+                            
+                            <section class="detail-section">
+                                <h3>Cultural Context</h3>
+                                <div class="cultural-context">
+                                    ${combinedData.culturalNotes ? 
+                                        `<p>${combinedData.culturalNotes}</p>` :
+                                        `<p>This kanji ${combinedData.matchedMeaning} is commonly used in Japanese writing.
+                                        ${combinedData.negativeConnotations.exists ? 
+                                            `<strong>Note:</strong> This kanji can have negative connotations in certain contexts: ${combinedData.negativeConnotations.meanings.join(', ')}.` : 
+                                            `It has generally positive or neutral connotations in Japanese culture.`}
+                                        </p>`}
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                `;
+                
+                // Set the HTML content
+                detailContainer.innerHTML = detailHTML;
+                
+                // Add event listener for loading tattoo examples
+                const loadTattooButton = document.getElementById('load-tattoo-examples');
+                if (loadTattooButton) {
+                    loadTattooButton.addEventListener('click', function() {
+                        searchTattooExamples(kanjiData.kanji);
+                    });
+                }
+                
+                // Show the modal
+                modal.classList.remove('hidden');
+                document.body.classList.add('modal-open');
+            })
+            .catch(error => {
+                console.error("Error fetching kanji details:", error);
+                
+                // Still show a basic detail view with the data we have
+                const basicDetailHTML = `
+                    <div class="kanji-detail-view">
+                        <div class="kanji-detail-header">
+                            <div class="detail-kanji">${kanjiData.kanji}</div>
+                            <div class="detail-meanings">
+                                <h2>${kanjiData.matchedMeaning}</h2>
+                            </div>
+                        </div>
+                        
+                        <div class="detail-sections">
+                            <section class="detail-section">
+                                <h3>Basic Information</h3>
+                                <p><strong>Pronunciation:</strong> ${kanjiData.pronunciation}</p>
+                                <p><strong>Common usage:</strong> ${kanjiData.commonUsage}</p>
+                            </section>
+                            
+                            <section class="detail-section">
+                                <h3>Tattoo Examples</h3>
+                                <div class="tattoo-examples" id="tattoo-examples-container">
+                                    <button id="load-tattoo-examples" class="detail-button">
+                                        View Tattoo Examples
+                                    </button>
+                                </div>
+                            </section>
+                        </div>
+                    </div>
+                `;
+                
+                // Set the HTML content
+                detailContainer.innerHTML = basicDetailHTML;
+                
+                // Add event listener for loading tattoo examples
+                const loadTattooButton = document.getElementById('load-tattoo-examples');
+                if (loadTattooButton) {
+                    loadTattooButton.addEventListener('click', function() {
+                        searchTattooExamples(kanjiData.kanji);
+                    });
+                }
+                
+                // Show the modal
+                modal.classList.remove('hidden');
+                document.body.classList.add('modal-open');
+            });
+    }
+    
+    /**
+     * Fetch detailed information about a kanji
+     * @param {string} kanji - The kanji character
+     * @return {Promise} - Promise resolving to kanji details object
+     */
+    async function fetchKanjiDetails(kanji) {
+        // For now, return placeholder data to demonstrate the UI
+        // In a real implementation, you would fetch this from an API
+        
+        // Mock delay to simulate network request
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // This would be replaced with actual API calls in production
+        return {
+            strokeOrderImage: `https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji/0${kanji.charCodeAt(0).toString(16)}.svg`,
+            commonWords: [
+                { kanji: `${kanji}人`, reading: 'jin', meaning: 'Person with this quality' },
+                { kanji: `${kanji}的`, reading: 'teki', meaning: 'Related to this concept' },
+                { kanji: `大${kanji}`, reading: 'dai-', meaning: 'Great/big version of this concept' }
+            ],
+            culturalNotes: `This kanji has been used in Japanese culture for centuries and represents an important concept in Eastern philosophy.`
+        };
+    }
+    
+    /**
+     * Search for tattoo examples with the given kanji
+     * @param {string} kanji - The kanji character
+     */
+    function searchTattooExamples(kanji) {
+        const examplesContainer = document.getElementById('tattoo-examples-container');
+        
+        // Show loading state
+        examplesContainer.innerHTML = '<p>Searching for tattoo examples...</p>';
+        
+        // Simulate image search results
+        setTimeout(() => {
+            // This would be replaced with actual API calls to image search services
+            examplesContainer.innerHTML = `
+                <div class="tattoo-images-grid">
+                    <p>Tattoo examples for the kanji "${kanji}":</p>
+                    <div class="tattoo-image-container">
+                        <p>In a real implementation, this would show actual search results from Google, Bing, or other image search APIs.</p>
+                        <p>For privacy and legal reasons, we're showing placeholder content instead.</p>
+                    </div>
+                    <div class="tattoo-search-links">
+                        <p>Search for examples on:</p>
+                        <a href="https://www.google.com/search?q=${kanji}+tattoo&tbm=isch" target="_blank" class="external-search">Google Images</a>
+                        <a href="https://www.pinterest.com/search/pins/?q=${kanji}%20tattoo" target="_blank" class="external-search">Pinterest</a>
+                        <a href="https://www.instagram.com/explore/tags/${kanji}tattoo/" target="_blank" class="external-search">Instagram</a>
+                    </div>
+                </div>
+            `;
+        }, 1000);
+    }
+
     function showLoading(isLoading) {
         if (isLoading) {
             loadingElement.classList.remove('hidden');

@@ -10,6 +10,13 @@ A web application that helps you find the perfect Kanji character for your tatto
 - **Accurate Match Percentages**: Advanced algorithm calculates how well each Kanji matches your search
 - **Multiple Meaning Support**: Shows all possible meanings of each Kanji with individual match scores
 - **Negative Connotation Warnings**: Alerts you if a Kanji has negative meanings related to your search
+- **Topical Relevance Scoring**: Prevents unrelated matches by considering semantic context
+- **Detailed Kanji Information**: Get in-depth details for each Kanji including:
+  - Stroke order animation
+  - Common compound words
+  - Cultural context
+  - Pronunciation guide
+  - Tattoo examples search
 - **Responsive Design**: Works on both desktop and mobile devices
 
 ## How It Works
@@ -19,7 +26,9 @@ A web application that helps you find the perfect Kanji character for your tatto
 3. **Semantic Matching**: Uses a sophisticated algorithm to match words to Kanji meanings
 4. **Meaning Analysis**: Considers all possible meanings and their match percentages
 5. **Connotation Checking**: Scans for potential negative meanings that might be undesirable
-6. **Result Ranking**: Sorts Kanji by match quality with transparent scoring
+6. **Topic Compatibility**: Ensures results are contextually relevant to your search
+7. **Result Ranking**: Sorts Kanji by match quality with transparent scoring
+8. **Detailed View**: Provides comprehensive information about each Kanji character
 
 ## Match Quality Indicators
 
@@ -28,6 +37,17 @@ A web application that helps you find the perfect Kanji character for your tatto
 - **★ Good Match (55-69%)**: Solid choices with good meaning alignment
 - **Moderate Match (40-54%)**: Fair options but verify with an expert
 - **Partial Match (Below 40%)**: Limited connection to your search term
+
+## Using the Detailed View
+
+The detailed view provides comprehensive information about each Kanji:
+
+1. Click on any Kanji card to open its detailed view
+2. Explore stroke order animation to understand how to write the character
+3. Learn about common compound words that use the Kanji
+4. Understand cultural context and historical usage
+5. Browse tattoo examples to see how the Kanji looks in real tattoos
+6. Access external links to find more images and references
 
 ## Important Notes
 
