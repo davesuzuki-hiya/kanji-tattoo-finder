@@ -60,6 +60,11 @@ document.addEventListener('DOMContentLoaded', () => {
         "nature": ["nature", "mountain", "ocean", "river", "forest", "flower", "tree", "sky", "sun", 
                   "moon", "star", "earth", "garden", "landscape", "wilderness"],
         
+        // Music and arts
+        "music": ["music", "song", "melody", "rhythm", "harmony", "tune", "instrument", "sing", "musical", 
+                 "lyric", "musician", "concert", "orchestra", "band", "performance", "composer", "guitar", 
+                 "piano", "drum", "singing", "vocalist", "voice", "sound", "audio", "note", "composition"],
+        
         // Negative concepts
         "negative": ["evil", "devil", "demon", "death", "fear", "hate", "anger", "rage", "jealousy",
                     "envy", "greed", "cruel", "pain", "suffering", "destruction"],
@@ -855,6 +860,14 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Comprehensive concept mapping for common phrases and ideas
         const conceptMappings = {
+            // Add music-related concepts
+            'music': ['melody', 'rhythm', 'sound', 'harmony', 'musical', 'song'],
+            'musician': ['artist', 'performer', 'player', 'composer', 'instrumentalist'],
+            'song': ['melody', 'tune', 'music', 'composition', 'lyric'],
+            'musical': ['melodic', 'harmonic', 'rhythmic', 'tuneful', 'orchestral'],
+            'love of music': ['music', 'melody', 'appreciation', 'passion', 'harmony'],
+            'music lover': ['music', 'appreciation', 'enthusiasm', 'passion', 'melody'],
+            
             // Freedom/Independence concepts
             'free spirit': ['freedom', 'independence', 'unrestrained', 'liberated', 'spontaneous'],
             'free spirited': ['freedom', 'independence', 'unrestrained', 'liberated', 'spontaneous'],
@@ -930,6 +943,43 @@ document.addEventListener('DOMContentLoaded', () => {
             'looking', 'search', 'means', 'meaning', 'represents', 'symbolize', 'symbolizes', 'tattoo'
         ];
         
+        // Extract phrases containing "of" to handle constructs like "love of music"
+        const ofPhrases = text.match(/\b\w+\s+of\s+\w+\b/g) || [];
+        
+        // Check if any of the "X of Y" phrases are in our concept mappings
+        for (const phrase of ofPhrases) {
+            if (conceptMappings[phrase]) {
+                return conceptMappings[phrase];
+            }
+            
+            // If not found in mappings, extract both parts and include them
+            const parts = phrase.split(' of ');
+            if (parts.length === 2) {
+                const part1 = parts[0].trim();
+                const part2 = parts[1].trim();
+                
+                if (!stopWords.includes(part1) && !stopWords.includes(part2)) {
+                    // Check if each part has a mapping
+                    const keywords = [];
+                    
+                    // Add mapped concepts if available
+                    if (conceptMappings[part1]) {
+                        keywords.push(...conceptMappings[part1]);
+                    } else {
+                        keywords.push(part1);
+                    }
+                    
+                    if (conceptMappings[part2]) {
+                        keywords.push(...conceptMappings[part2]);
+                    } else {
+                        keywords.push(part2);
+                    }
+                    
+                    return [...new Set(keywords)]; // Remove duplicates
+                }
+            }
+        }
+        
         // First, check for complete concept phrases
         for (const [phrase, keywords] of Object.entries(conceptMappings)) {
             if (text.includes(phrase)) {
@@ -979,24 +1029,34 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // Check for individual concept words
+        // Track all important words, not just those in our concept mappings
+        const extractedWords = [];
         const conceptWords = [];
+        
+        // Extract all non-stopwords and check for concept mappings
         for (const word of words) {
-            if (conceptMappings[word]) {
-                conceptWords.push(...conceptMappings[word]);
+            if (!stopWords.includes(word)) {
+                extractedWords.push(word);
+                
+                if (conceptMappings[word]) {
+                    conceptWords.push(...conceptMappings[word]);
+                }
             }
         }
         
+        // If we have both extracted words and concept words, combine them
+        if (extractedWords.length > 0 && conceptWords.length > 0) {
+            return [...new Set([...extractedWords, ...conceptWords])]; // Remove duplicates
+        }
+        
+        // If we have concept words, return those
         if (conceptWords.length > 0) {
             return [...new Set(conceptWords)]; // Remove duplicates
         }
         
-        // Filter out stop words for regular processing
-        const filteredWords = words.filter(word => !stopWords.includes(word));
-        
         // If we have filtered words, return those
-        if (filteredWords.length > 0) {
-            return filteredWords;
+        if (extractedWords.length > 0) {
+            return extractedWords;
         }
         
         // Last resort: find the most meaningful word
