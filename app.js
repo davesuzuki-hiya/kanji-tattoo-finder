@@ -1037,21 +1037,175 @@ document.addEventListener('DOMContentLoaded', () => {
      * @return {Promise} - Promise resolving to kanji details object
      */
     async function fetchKanjiDetails(kanji) {
-        // For now, return placeholder data to demonstrate the UI
+        // For now, return more targeted data based on the kanji
         // In a real implementation, you would fetch this from an API
         
         // Mock delay to simulate network request
         await new Promise(resolve => setTimeout(resolve, 500));
         
+        // Get the hex code for the kanji (for SVG lookup)
+        const kanjiHex = kanji.charCodeAt(0).toString(16);
+        
+        // Common words database for popular kanji
+        const commonWordsDatabase = {
+            // Love kanji
+            '愛': [
+                { kanji: '愛情', reading: 'ai-jō', meaning: 'Love, affection' },
+                { kanji: '恋愛', reading: 'ren-ai', meaning: 'Romantic love' },
+                { kanji: '愛する', reading: 'ai-suru', meaning: 'To love (verb)' },
+                { kanji: '愛国', reading: 'ai-koku', meaning: 'Patriotism' },
+                { kanji: '親愛', reading: 'shin-ai', meaning: 'Affection, attachment' }
+            ],
+            // Peace kanji
+            '平': [
+                { kanji: '平和', reading: 'hei-wa', meaning: 'Peace, harmony' },
+                { kanji: '平等', reading: 'byō-dō', meaning: 'Equality' },
+                { kanji: '平日', reading: 'hei-jitsu', meaning: 'Weekday' },
+                { kanji: '平常', reading: 'hei-jō', meaning: 'Normal, usual' },
+                { kanji: '平均', reading: 'hei-kin', meaning: 'Average' }
+            ],
+            // Strength kanji
+            '強': [
+                { kanji: '強い', reading: 'tsuyo-i', meaning: 'Strong (adjective)' },
+                { kanji: '強力', reading: 'kyō-ryoku', meaning: 'Powerful, strong' },
+                { kanji: '強調', reading: 'kyō-chō', meaning: 'Emphasis, stress' },
+                { kanji: '強制', reading: 'kyō-sei', meaning: 'Enforcement, coercion' },
+                { kanji: '強風', reading: 'kyō-fū', meaning: 'Strong wind' }
+            ],
+            // Beauty kanji
+            '美': [
+                { kanji: '美しい', reading: 'utsu-kushii', meaning: 'Beautiful (adjective)' },
+                { kanji: '美人', reading: 'bi-jin', meaning: 'Beautiful woman' },
+                { kanji: '美術', reading: 'bi-jutsu', meaning: 'Art, fine arts' },
+                { kanji: '美容', reading: 'bi-yō', meaning: 'Beauty, aesthetics' },
+                { kanji: '美味しい', reading: 'oi-shii', meaning: 'Delicious' }
+            ],
+            // Courage kanji
+            '勇': [
+                { kanji: '勇気', reading: 'yū-ki', meaning: 'Courage, bravery' },
+                { kanji: '勇者', reading: 'yū-sha', meaning: 'Hero, brave person' },
+                { kanji: '勇敢', reading: 'yū-kan', meaning: 'Brave, heroic' },
+                { kanji: '勇ましい', reading: 'isa-mashii', meaning: 'Brave, valiant' },
+                { kanji: '武勇', reading: 'bu-yū', meaning: 'Military prowess' }
+            ],
+            // Trust kanji
+            '信': [
+                { kanji: '信頼', reading: 'shin-rai', meaning: 'Trust, confidence' },
+                { kanji: '信じる', reading: 'shin-jiru', meaning: 'To believe, to trust' },
+                { kanji: '自信', reading: 'ji-shin', meaning: 'Self-confidence' },
+                { kanji: '信用', reading: 'shin-yō', meaning: 'Credit, trust' },
+                { kanji: '信号', reading: 'shin-gō', meaning: 'Traffic signal' }
+            ],
+            // Hope kanji
+            '希': [
+                { kanji: '希望', reading: 'ki-bō', meaning: 'Hope, wish' },
+                { kanji: '希少', reading: 'ki-shō', meaning: 'Rare, scarce' },
+                { kanji: '希求', reading: 'ki-kyū', meaning: 'Aspiration' },
+                { kanji: '希薄', reading: 'ki-haku', meaning: 'Thin, weak' },
+                { kanji: '希釈', reading: 'ki-shaku', meaning: 'Dilution' }
+            ],
+            // Dream kanji
+            '夢': [
+                { kanji: '夢見る', reading: 'yume-miru', meaning: 'To dream' },
+                { kanji: '悪夢', reading: 'aku-mu', meaning: 'Nightmare' },
+                { kanji: '夢中', reading: 'mu-chū', meaning: 'Absorbed in, crazy about' },
+                { kanji: '夢想', reading: 'mu-sō', meaning: 'Dream, vision' },
+                { kanji: '夢物語', reading: 'yume-monogatari', meaning: 'Fantasy, pipe dream' }
+            ],
+            // Wisdom kanji
+            '智': [
+                { kanji: '知恵', reading: 'chi-e', meaning: 'Wisdom, intelligence' },
+                { kanji: '智力', reading: 'chi-ryoku', meaning: 'Intelligence, intellect' },
+                { kanji: '智慧', reading: 'chi-e', meaning: 'Wisdom (Buddhist term)' },
+                { kanji: '知性', reading: 'chi-sei', meaning: 'Intelligence, intellect' },
+                { kanji: '英知', reading: 'ei-chi', meaning: 'Wisdom, intelligence' }
+            ],
+            // Harmony kanji
+            '和': [
+                { kanji: '平和', reading: 'hei-wa', meaning: 'Peace' },
+                { kanji: '和風', reading: 'wa-fū', meaning: 'Japanese style' },
+                { kanji: '和食', reading: 'wa-shoku', meaning: 'Japanese cuisine' },
+                { kanji: '和室', reading: 'wa-shitsu', meaning: 'Japanese-style room' },
+                { kanji: '調和', reading: 'chō-wa', meaning: 'Harmony, accord' }
+            ],
+            // Life kanji
+            '命': [
+                { kanji: '生命', reading: 'sei-mei', meaning: 'Life' },
+                { kanji: '命令', reading: 'mei-rei', meaning: 'Order, command' },
+                { kanji: '運命', reading: 'un-mei', meaning: 'Fate, destiny' },
+                { kanji: '命中', reading: 'mei-chū', meaning: 'Hit, striking' },
+                { kanji: '寿命', reading: 'ju-myō', meaning: 'Lifespan' }
+            ],
+            // Freedom kanji
+            '自': [
+                { kanji: '自由', reading: 'ji-yū', meaning: 'Freedom, liberty' },
+                { kanji: '自分', reading: 'ji-bun', meaning: 'Oneself' },
+                { kanji: '自然', reading: 'shi-zen', meaning: 'Nature, natural' },
+                { kanji: '自信', reading: 'ji-shin', meaning: 'Self-confidence' },
+                { kanji: '自立', reading: 'ji-ritsu', meaning: 'Independence, self-reliance' }
+            ],
+            // Music kanji
+            '音': [
+                { kanji: '音楽', reading: 'ong-gaku', meaning: 'Music' },
+                { kanji: '音色', reading: 'ne-iro', meaning: 'Tone, timbre' },
+                { kanji: '音声', reading: 'on-sei', meaning: 'Voice, sound' },
+                { kanji: '音量', reading: 'on-ryō', meaning: 'Volume' },
+                { kanji: '騒音', reading: 'sō-on', meaning: 'Noise' }
+            ]
+        };
+        
+        // Cultural context database
+        const culturalContextDatabase = {
+            '愛': 'In Japanese culture, "愛" (ai) represents deep love and affection. Unlike Western concepts that may focus on romantic love, this kanji encompasses familial love, compassion for others, and dedication. It appears in numerous Japanese idioms and expressions about caring relationships and is considered one of the most positive kanji for tattoos.',
+            
+            '平': 'The kanji "平" (hei/taira) represents peace, balance, and harmony - core values in Japanese philosophy. It is the first character in the word for peace (平和, heiwa) and appears in many terms related to balance and stability. In Japanese aesthetics, it relates to the concept of creating tranquility through balance.',
+            
+            '強': 'The kanji "強" (kyō/tsuyoi) represents strength and power in Japanese culture. While often positive, depicting inner strength and resilience, it can also carry connotations of force or domination depending on context. In martial arts philosophy, this strength is ideally balanced with wisdom and restraint.',
+            
+            '美': 'Beauty (美, bi) in Japanese aesthetics goes beyond mere appearance. It encompasses concepts of harmony, purity, and the appreciation of transience. Japanese art and philosophy often emphasize finding beauty in simplicity and imperfection (wabi-sabi). This kanji appears in many terms related to aesthetics and artistic pursuits.',
+            
+            '勇': 'Courage (勇, yū) in Japanese tradition is highly valued and often associated with the samurai spirit. It represents not just physical bravery but moral courage and determination. In Buddhist teachings, courage is one of the virtues needed to overcome suffering and achieve enlightenment.',
+            
+            '信': 'Trust and faith (信, shin) are foundational values in Japanese society, where social harmony depends on reliability and honesty. This kanji is used in words relating to confidence, reliability, and belief. In business relationships, trust (信用, shin-yō) is considered essential for successful partnerships.',
+            
+            '希': 'Hope (希, ki) in Japanese culture represents aspiration and desire for positive outcomes. It appears in the common word for "hope" (希望, kibō). The concept embodies optimism while acknowledging life's uncertainties - a balance between desire and acceptance that aligns with Buddhist philosophy.',
+            
+            '夢': 'The kanji for dream (夢, yume) has significant cultural importance in Japan. Dreams were traditionally considered messages from spirits or premonitions. In modern usage, it often refers to aspirations and goals. Japanese literature and art frequently explore the boundary between dreams and reality.',
+            
+            '智': 'Wisdom (智, chi) in Japanese philosophy is more than just knowledge - it represents deep understanding and insight. Influenced by Buddhist concepts, this wisdom includes both practical knowledge and spiritual enlightenment. It's one of the virtues emphasized in traditional education and moral teachings.',
+            
+            '和': 'Harmony (和, wa) is perhaps the most fundamental concept in Japanese culture. It represents peace, unity, and balance in social relationships. The idea of maintaining harmony influences Japanese communication styles, conflict resolution, and social structures. This kanji also represents Japan itself in many contexts.',
+            
+            '命': 'Life (命, inochi) in Japanese culture carries spiritual significance beyond mere biological existence. Influenced by Shinto and Buddhist beliefs, it represents the sacred nature of all living things and the interconnectedness of existence. It appears in many philosophical discussions about purpose and meaning.',
+            
+            '自': 'While this kanji means "self" (自, ji), when combined with "由" (yū) it forms the word for "freedom" (自由, jiyū). In Japanese philosophy, true freedom is often seen as self-mastery rather than absence of constraints. The concept balances individual liberty with social responsibility.',
+            
+            '音': 'The kanji for sound (音, oto/on) has deep cultural significance in Japan. Traditional Japanese music emphasizes the beauty of individual sounds and the space between them. In poetry and literature, sound imagery is carefully cultivated, and many Japanese festivals feature distinctive soundscapes that evoke cultural memory.'
+        };
+        
+        // Default fallback data
+        let commonWords = [
+            { kanji: `${kanji}人`, reading: 'jin', meaning: 'Person with this quality' },
+            { kanji: `${kanji}的`, reading: 'teki', meaning: 'Related to this concept' },
+            { kanji: `大${kanji}`, reading: 'dai-', meaning: 'Great/big version of this concept' }
+        ];
+        
+        let culturalNotes = `This kanji has been used in Japanese culture for centuries and represents an important concept in Eastern philosophy.`;
+        
+        // Get specific data if available
+        if (commonWordsDatabase[kanji]) {
+            commonWords = commonWordsDatabase[kanji];
+        }
+        
+        if (culturalContextDatabase[kanji]) {
+            culturalNotes = culturalContextDatabase[kanji];
+        }
+        
         // This would be replaced with actual API calls in production
         return {
-            strokeOrderImage: `https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji/0${kanji.charCodeAt(0).toString(16)}.svg`,
-            commonWords: [
-                { kanji: `${kanji}人`, reading: 'jin', meaning: 'Person with this quality' },
-                { kanji: `${kanji}的`, reading: 'teki', meaning: 'Related to this concept' },
-                { kanji: `大${kanji}`, reading: 'dai-', meaning: 'Great/big version of this concept' }
-            ],
-            culturalNotes: `This kanji has been used in Japanese culture for centuries and represents an important concept in Eastern philosophy.`
+            strokeOrderImage: `https://raw.githubusercontent.com/KanjiVG/kanjivg/master/kanji/0${kanjiHex}.svg`,
+            commonWords: commonWords,
+            culturalNotes: culturalNotes
         };
     }
     
