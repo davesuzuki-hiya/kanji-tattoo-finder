@@ -64,6 +64,18 @@ document.addEventListener('DOMContentLoaded', () => {
             // Extract keywords from natural language input
             const keywords = extractKeywords(searchInput);
             
+            if (keywords.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div class="no-results">
+                        <h2>No Keywords Found</h2>
+                        <p>Couldn't extract meaningful keywords from "${searchInput}".</p>
+                        <p>Try using more specific terms related to the concept you're looking for.</p>
+                    </div>
+                `;
+                showLoading(false);
+                return;
+            }
+            
             // Get word variations including synonyms for each keyword
             const allWordVariations = [];
             for (const keyword of keywords) {
@@ -71,14 +83,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 allWordVariations.push(...variations);
             }
             
-            // Remove duplicates
-            const uniqueWordVariations = [...new Set(allWordVariations)];
+            // Remove duplicates and prioritize original keywords
+            const uniqueWordVariations = [
+                ...keywords, // Put original keywords first for higher priority
+                ...allWordVariations.filter(word => !keywords.includes(word))
+            ];
             
-            // Find Kanji matches with expanded word list
-            const matchResults = findKanjiMatches(keywords[0], uniqueWordVariations);
+            // Remove duplicates
+            const finalWordVariations = [...new Set(uniqueWordVariations)];
+            
+            // Find Kanji matches with expanded word list - pass all keywords for better matching
+            const matchResults = findKanjiMatchesImproved(keywords, finalWordVariations);
             
             // Display results
-            displayResults(matchResults, searchInput, uniqueWordVariations);
+            displayResults(matchResults, searchInput, finalWordVariations);
         } catch (error) {
             console.error("Error during search:", error);
             resultsContainer.innerHTML = '<p class="error">An error occurred during search. Please try again.</p>';
@@ -88,12 +106,9 @@ document.addEventListener('DOMContentLoaded', () => {
         showLoading(false);
     }
 
-    function findKanjiMatches(searchWord, wordVariations) {
+    function findKanjiMatchesImproved(keywords, wordVariations) {
         const results = [];
         const processedKanji = new Set(); // To avoid duplicate Kanji in results
-        
-        // Track which variation matched best for each Kanji
-        const matchSources = {};
         
         // Loop through each kanji in our database
         kanjiDatabase.forEach(kanjiData => {
@@ -106,44 +121,52 @@ document.addEventListener('DOMContentLoaded', () => {
             const meaningMatches = [];
             let bestMatchScore = 0;
             let bestMatchWord = '';
-            let bestVariation = searchWord; // Default to original search word
+            let bestMatchKeyword = '';
             
-            // First check direct matches with the original search word
-            let directMatchScore = 0;
-            let directMatchWord = '';
-            
-            kanjiData.meanings.forEach(meaning => {
-                const score = calculateImprovedSimilarity(searchWord, meaning);
+            // Check each primary keyword against each kanji meaning
+            for (const keyword of keywords) {
+                let keywordBestScore = 0;
+                let keywordBestMeaning = '';
                 
-                // If there's a decent direct match, record it
-                if (score >= 0.35) {
-                    meaningMatches.push({
-                        meaning: meaning,
-                        score: score,
-                        variation: searchWord
-                    });
-                    
-                    if (score > directMatchScore) {
-                        directMatchScore = score;
-                        directMatchWord = meaning;
-                    }
-                }
-            });
-            
-            // Then check matches with word variations, but only if we don't have a strong direct match
-            if (directMatchScore < 0.75) { // Only use synonyms if direct match isn't already strong
-                // Check each meaning of the kanji with word variations
                 kanjiData.meanings.forEach(meaning => {
-                    // Skip the original word since we already checked it
-                    for (let i = 1; i < wordVariations.length; i++) {
-                        const variation = wordVariations[i];
+                    const score = calculateImprovedSimilarity(keyword, meaning);
+                    
+                    // If there's a decent direct match, record it
+                    if (score >= 0.35) {
+                        meaningMatches.push({
+                            meaning: meaning,
+                            score: score,
+                            variation: keyword
+                        });
                         
+                        if (score > keywordBestScore) {
+                            keywordBestScore = score;
+                            keywordBestMeaning = meaning;
+                        }
+                    }
+                });
+                
+                // Update the overall best match if this keyword had a better match
+                if (keywordBestScore > bestMatchScore) {
+                    bestMatchScore = keywordBestScore;
+                    bestMatchWord = keywordBestMeaning;
+                    bestMatchKeyword = keyword;
+                }
+            }
+            
+            // Then check the extended variations, but with lower priority
+            if (bestMatchScore < 0.75) { // Only use synonyms if direct match isn't already strong
+                // Skip the primary keywords since we already checked them
+                const variations = wordVariations.filter(word => !keywords.includes(word));
+                
+                for (const variation of variations) {
+                    kanjiData.meanings.forEach(meaning => {
                         // Calculate similarity score with improved algorithm
                         const score = calculateImprovedSimilarity(variation, meaning);
                         
-                        // Apply a synonym penalty to the score (80% of original score)
+                        // Apply a synonym penalty to the score (75% of original score)
                         // This ensures synonym matches are weighted lower than direct matches
-                        const adjustedScore = score * 0.8;
+                        const adjustedScore = score * 0.75;
                         
                         // If it's a decent match, add it to our matches
                         if (adjustedScore >= 0.35) {
@@ -157,64 +180,92 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (adjustedScore > bestMatchScore) {
                             bestMatchScore = adjustedScore;
                             bestMatchWord = meaning;
-                            bestVariation = variation;
+                            bestMatchKeyword = variation;
                         }
-                    }
-                });
-            }
-            
-            // If direct match is better, use that instead
-            if (directMatchScore > bestMatchScore) {
-                bestMatchScore = directMatchScore;
-                bestMatchWord = directMatchWord;
-                bestVariation = searchWord;
+                    }); 
+                }
             }
             
             // Only include results with a match score above threshold
             if (bestMatchScore >= 0.35) {
                 // Apply a more nuanced scoring system to the final percentage
-                let adjustedScore = adjustMatchScore(bestMatchScore, meaningMatches, searchWord);
+                let adjustedScore = adjustMatchScore(bestMatchScore, meaningMatches, bestMatchKeyword);
                 
-                // Additional adjustment for matches found through synonyms
-                // If the best match is through a synonym and not the original word,
-                // further reduce the score based on the semantic distance between 
-                // the original word and the synonym that matched
-                if (bestVariation !== searchWord) {
-                    const similarityToOriginal = calculateSemanticSimilarity(searchWord, bestVariation);
-                    
-                    // Scale the final score based on how similar the synonym is to the original word
-                    // This prevents unrelated synonyms from giving inappropriately high scores
-                    adjustedScore = adjustedScore * similarityToOriginal;
-                    
-                    // Add an extra penalty for matches through synonyms
-                    adjustedScore = adjustedScore * 0.85;
+                // Increase score for matches to primary keywords (extracted concepts)
+                if (keywords.includes(bestMatchKeyword)) {
+                    adjustedScore = Math.min(1.0, adjustedScore * 1.15); // Boost by 15%
                 }
                 
-                // Check negative connotations against search term
-                const negativeMatchInfo = checkNegativeConnotations(searchWord, kanjiData);
+                // Check negative connotations against all keywords
+                let highestNegativeMatch = null;
+                let highestNegativeScore = 0;
                 
-                // Track which word variation led to this match
-                matchSources[kanjiData.kanji] = bestVariation !== searchWord ? bestVariation : null;
+                for (const keyword of keywords) {
+                    const negativeMatchInfo = checkNegativeConnotations(keyword, kanjiData);
+                    if (negativeMatchInfo && negativeMatchInfo.exists && negativeMatchInfo.matchPercentage > highestNegativeScore) {
+                        highestNegativeMatch = negativeMatchInfo;
+                        highestNegativeScore = negativeMatchInfo.matchPercentage;
+                    }
+                }
                 
                 results.push({
                     kanji: kanjiData.kanji,
                     matchPercentage: Math.round(adjustedScore * 100),
                     matchedMeaning: bestMatchWord,
+                    matchedKeyword: bestMatchKeyword,
                     pronunciation: kanjiData.pronunciation,
                     commonUsage: kanjiData.commonUsage,
                     meaningMatches: meaningMatches.sort((a, b) => b.score - a.score),
                     negativeConnotations: kanjiData.negativeConnotations,
-                    negativeMatch: negativeMatchInfo,
+                    negativeMatch: highestNegativeMatch,
                     rawScore: bestMatchScore,
-                    matchSource: bestVariation !== searchWord ? bestVariation : null
+                    matchSource: !keywords.includes(bestMatchKeyword) ? bestMatchKeyword : null
                 });
                 
                 processedKanji.add(kanjiData.kanji);
             }
         });
         
+        // Apply a more conceptual filtering to remove literal matches that don't fit
+        // For example, this would filter out "freeze" when searching for "free spirited"
+        const filteredResults = results.filter(result => {
+            // If the match is to a primary keyword, keep it
+            if (keywords.includes(result.matchedKeyword)) {
+                return true;
+            }
+            
+            // Check if the matched word is semantically related to any primary keyword
+            for (const keyword of keywords) {
+                const similarity = calculateSemanticSimilarity(keyword, result.matchedKeyword);
+                if (similarity >= 0.6) {
+                    return true;
+                }
+            }
+            
+            // For high-scoring matches, be more lenient
+            if (result.matchPercentage >= 85) {
+                return true;
+            }
+            
+            // Filter out lower-scoring matches that aren't conceptually related
+            if (result.matchPercentage < 70) {
+                // Additional check for homonyms (words that sound similar but mean different things)
+                // This helps filter out things like "freeze" when looking for "free"
+                const isPossibleHomonym = keywords.some(keyword => 
+                    soundsSimilar(keyword, result.matchedKeyword) && 
+                    !areConceptuallyRelated(keyword, result.matchedKeyword)
+                );
+                
+                if (isPossibleHomonym) {
+                    return false;
+                }
+            }
+            
+            return true;
+        });
+        
         // Sort by match percentage (highest first)
-        return results.sort((a, b) => b.matchPercentage - a.matchPercentage);
+        return filteredResults.sort((a, b) => b.matchPercentage - a.matchPercentage);
     }
     
     async function getWordVariations(word) {
@@ -710,6 +761,51 @@ document.addEventListener('DOMContentLoaded', () => {
         // Convert to lowercase
         const text = input.toLowerCase();
         
+        // Comprehensive concept mapping for common phrases and ideas
+        const conceptMappings = {
+            // Freedom/Independence concepts
+            'free spirit': ['freedom', 'independence', 'unrestrained', 'liberated', 'spontaneous'],
+            'free spirited': ['freedom', 'independence', 'unrestrained', 'liberated', 'spontaneous'],
+            'independent': ['freedom', 'self-reliant', 'autonomous', 'self-sufficient'],
+            'liberty': ['freedom', 'independence', 'autonomy', 'emancipation'],
+            
+            // Strength/Power concepts
+            'strong willed': ['determination', 'resolve', 'perseverance', 'tenacity', 'willpower'],
+            'inner strength': ['resilience', 'fortitude', 'endurance', 'courage', 'power'],
+            'powerful': ['strength', 'force', 'might', 'potent', 'influential'],
+            
+            // Perseverance concepts
+            'never give up': ['perseverance', 'persistence', 'determination', 'endurance', 'resolve'],
+            'perseverance': ['persistence', 'determination', 'steadfastness', 'tenacity'],
+            'endurance': ['stamina', 'resilience', 'fortitude', 'persistence'],
+            
+            // Peace/Harmony concepts
+            'inner peace': ['tranquility', 'serenity', 'calm', 'harmony', 'balance'],
+            'peaceful': ['tranquil', 'serene', 'calm', 'harmonious', 'placid'],
+            'harmony': ['balance', 'accord', 'unity', 'concord'],
+            
+            // Prosperity concepts
+            'good luck': ['fortune', 'prosperity', 'success', 'blessing', 'auspicious'],
+            'good fortune': ['luck', 'prosperity', 'success', 'blessing', 'wealth'],
+            'prosperity': ['abundance', 'wealth', 'success', 'thriving', 'fortune'],
+            
+            // Wisdom concepts
+            'wisdom': ['knowledge', 'insight', 'understanding', 'enlightenment', 'sagacity'],
+            'intelligent': ['smart', 'wise', 'knowledgeable', 'intellectual', 'perceptive'],
+            
+            // Courage concepts
+            'brave': ['courage', 'valor', 'daring', 'fearless', 'bold'],
+            'courage': ['bravery', 'valor', 'fearlessness', 'heroism', 'boldness'],
+            
+            // Love concepts
+            'love': ['affection', 'compassion', 'devotion', 'adoration', 'fondness'],
+            'loving': ['affectionate', 'caring', 'devoted', 'tender', 'warm'],
+            
+            // Beauty concepts
+            'beautiful': ['beauty', 'attractive', 'lovely', 'elegant', 'pleasing'],
+            'elegance': ['grace', 'refinement', 'style', 'sophistication', 'poise']
+        };
+        
         // Common stop words to filter out
         const stopWords = [
             'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 
@@ -727,48 +823,136 @@ document.addEventListener('DOMContentLoaded', () => {
             'haven\'t', 'hadn\'t', 'doesn\'t', 'don\'t', 'didn\'t', 'won\'t', 'wouldn\'t', 
             'shan\'t', 'shouldn\'t', 'can\'t', 'cannot', 'couldn\'t', 'mustn\'t', 'let\'s', 
             'that\'s', 'who\'s', 'what\'s', 'here\'s', 'there\'s', 'when\'s', 'where\'s', 
-            'why\'s', 'how\'s', 'find', 'me', 'that', 'represent', 'am', 'is', 'are', 'kanji'
+            'why\'s', 'how\'s', 'find', 'me', 'that', 'represent', 'am', 'is', 'are', 'kanji',
+            'looking', 'search', 'means', 'meaning', 'represents', 'symbolize', 'symbolizes', 'tattoo'
         ];
         
-        // Special phrases to extract meaningful concepts
-        const specialPhrases = {
-            'free spirited': ['freedom', 'spirit', 'independent'],
-            'free spirit': ['freedom', 'spirit', 'independent'],
-            'strong willed': ['determination', 'strength', 'willpower'],
-            'never give up': ['perseverance', 'determination', 'endurance'],
-            'inner peace': ['peace', 'tranquility', 'harmony'],
-            'good luck': ['fortune', 'luck', 'prosperity'],
-            'good fortune': ['fortune', 'luck', 'prosperity'],
-        };
-        
-        // Check for special phrases first
-        for (const [phrase, keywords] of Object.entries(specialPhrases)) {
+        // First, check for complete concept phrases
+        for (const [phrase, keywords] of Object.entries(conceptMappings)) {
             if (text.includes(phrase)) {
                 return keywords;
             }
         }
         
-        // Preprocess: remove punctuation and split into words
-        const words = text.replace(/[^\w\s]/g, '').split(/\s+/);
+        // Handle more complex query patterns
+        // Look for patterns like "find me a kanji for X" or "kanji that represents X"
+        const representPatterns = [
+            /kanji (?:for|that represents|that means|meaning|symbolizing|symbolizes|about) ([^.?!]+)/i,
+            /find (?:a|me a|me some|some) kanji (?:for|that represents|that means|meaning|symbolizing|about) ([^.?!]+)/i,
+            /looking for (?:a|some) kanji (?:for|that represents|that means|symbolizing|about) ([^.?!]+)/i,
+            /i want (?:a|some) kanji (?:for|that represents|that means|symbolizing|about) ([^.?!]+)/i,
+            /kanji (?:that|which|to) (?:represents|means|symbolizes|expresses) ([^.?!]+)/i
+        ];
         
-        // Filter out stop words and extract meaningful keywords
-        const keywords = words.filter(word => !stopWords.includes(word));
-        
-        // If we have no keywords after filtering, use the first non-stopword
-        if (keywords.length === 0) {
-            for (const word of words) {
-                if (!stopWords.includes(word)) {
-                    keywords.push(word);
-                    break;
-                }
+        for (const pattern of representPatterns) {
+            const match = text.match(pattern);
+            if (match && match[1]) {
+                // Extract the concept after the pattern
+                const conceptPhrase = match[1].trim();
+                // Process the extracted concept
+                return processConceptPhrase(conceptPhrase, conceptMappings, stopWords);
             }
         }
         
-        // If we still have no keywords, use the first word
-        if (keywords.length === 0 && words.length > 0) {
-            keywords.push(words[0]);
+        // If no patterns matched, process the whole text
+        return processConceptPhrase(text, conceptMappings, stopWords);
+    }
+
+    /**
+     * Process a concept phrase to extract meaningful keywords
+     * @param {string} phrase - The phrase to process
+     * @param {object} conceptMappings - Concept mappings dictionary
+     * @param {array} stopWords - Stop words to filter out
+     * @return {array} - Array of keywords
+     */
+    function processConceptPhrase(phrase, conceptMappings, stopWords) {
+        // Remove punctuation and split into words
+        const words = phrase.replace(/[^\w\s]/g, '').split(/\s+/);
+        
+        // First, try to find multi-word concepts in the phrase
+        for (const [conceptPhrase, keywords] of Object.entries(conceptMappings)) {
+            if (phrase.includes(conceptPhrase)) {
+                return keywords;
+            }
         }
         
-        return keywords;
+        // Check for individual concept words
+        const conceptWords = [];
+        for (const word of words) {
+            if (conceptMappings[word]) {
+                conceptWords.push(...conceptMappings[word]);
+            }
+        }
+        
+        if (conceptWords.length > 0) {
+            return [...new Set(conceptWords)]; // Remove duplicates
+        }
+        
+        // Filter out stop words for regular processing
+        const filteredWords = words.filter(word => !stopWords.includes(word));
+        
+        // If we have filtered words, return those
+        if (filteredWords.length > 0) {
+            return filteredWords;
+        }
+        
+        // Last resort: find the most meaningful word
+        // Sort words by length (longer words tend to be more meaningful)
+        const sortedWords = [...words].sort((a, b) => b.length - a.length);
+        
+        // Return the longest word if it exists
+        if (sortedWords.length > 0) {
+            return [sortedWords[0]];
+        }
+        
+        // If nothing else works, return an empty array
+        return [];
+    }
+
+    /**
+     * Check if two words sound similar but have different meanings
+     * @param {string} word1 - First word
+     * @param {string} word2 - Second word
+     * @return {boolean} - True if they sound similar
+     */
+    function soundsSimilar(word1, word2) {
+        // Simple check for words that start with the same sound but aren't the same word
+        if (word1 !== word2 && 
+            word1.substring(0, 3) === word2.substring(0, 3) && 
+            Math.abs(word1.length - word2.length) <= 3) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Check if two words are conceptually related
+     * @param {string} word1 - First word
+     * @param {string} word2 - Second word
+     * @return {boolean} - True if they are conceptually related
+     */
+    function areConceptuallyRelated(word1, word2) {
+        // List of conceptually related word pairs
+        const relatedConcepts = {
+            'free': ['freedom', 'liberty', 'independent', 'unrestrained', 'liberated'],
+            'spirit': ['soul', 'essence', 'energy', 'vitality', 'life'],
+            'brave': ['courage', 'valor', 'fearless', 'heroic', 'bold'],
+            'strength': ['power', 'might', 'force', 'energy', 'robust'],
+            'peace': ['harmony', 'tranquility', 'calm', 'serenity', 'still'],
+            'hope': ['wish', 'expect', 'desire', 'aspire', 'optimism'],
+            'love': ['affection', 'adore', 'passion', 'devotion', 'care']
+        };
+        
+        // Check if word2 is related to word1
+        if (relatedConcepts[word1] && relatedConcepts[word1].includes(word2)) {
+            return true;
+        }
+        
+        // Check if word1 is related to word2
+        if (relatedConcepts[word2] && relatedConcepts[word2].includes(word1)) {
+            return true;
+        }
+        
+        return false;
     }
 }); 
