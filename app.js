@@ -97,8 +97,11 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsContainer.innerHTML = '';
         
         try {
+            console.log("Starting search for:", searchInput);
+            
             // Extract keywords from natural language input
             const keywords = extractKeywords(searchInput);
+            console.log("Extracted keywords:", keywords);
             
             if (keywords.length === 0) {
                 resultsContainer.innerHTML = `
@@ -116,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const allWordVariations = [];
             for (const keyword of keywords) {
                 const variations = await getWordVariations(keyword);
+                console.log(`Variations for ${keyword}:`, variations);
                 allWordVariations.push(...variations);
             }
             
@@ -127,19 +131,30 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Remove duplicates
             const finalWordVariations = [...new Set(uniqueWordVariations)];
+            console.log("Final word variations:", finalWordVariations);
             
-            // Find Kanji matches with expanded word list - pass all keywords for better matching
-            const matchResults = findKanjiMatchesImproved(keywords, finalWordVariations);
+            // Find Kanji matches with expanded word list
+            console.log("Finding kanji matches...");
+            
+            // TEMPORARY FIX: Use the first keyword and the original findKanjiMatches function
+            // This should help find the issue by isolating where the problem is
+            const matchResults = findKanjiMatches(keywords[0], finalWordVariations);
+            
+            console.log("Match results found:", matchResults.length);
             
             // Display results
+            console.log("Displaying results...");
             displayResults(matchResults, searchInput, finalWordVariations);
         } catch (error) {
             console.error("Error during search:", error);
-            resultsContainer.innerHTML = '<p class="error">An error occurred during search. Please try again.</p>';
+            resultsContainer.innerHTML = `
+                <p class="error">An error occurred during search: ${error.message}</p>
+                <p>Check the console for more details.</p>
+            `;
+        } finally {
+            // Hide loading indicator
+            showLoading(false);
         }
-        
-        // Hide loading indicator
-        showLoading(false);
     }
 
     function findKanjiMatchesImproved(keywords, wordVariations) {
@@ -1157,29 +1172,17 @@ document.addEventListener('DOMContentLoaded', () => {
         // Cultural context database
         const culturalContextDatabase = {
             '愛': 'In Japanese culture, "愛" (ai) represents deep love and affection. Unlike Western concepts that may focus on romantic love, this kanji encompasses familial love, compassion for others, and dedication. It appears in numerous Japanese idioms and expressions about caring relationships and is considered one of the most positive kanji for tattoos.',
-            
             '平': 'The kanji "平" (hei/taira) represents peace, balance, and harmony - core values in Japanese philosophy. It is the first character in the word for peace (平和, heiwa) and appears in many terms related to balance and stability. In Japanese aesthetics, it relates to the concept of creating tranquility through balance.',
-            
             '強': 'The kanji "強" (kyō/tsuyoi) represents strength and power in Japanese culture. While often positive, depicting inner strength and resilience, it can also carry connotations of force or domination depending on context. In martial arts philosophy, this strength is ideally balanced with wisdom and restraint.',
-            
             '美': 'Beauty (美, bi) in Japanese aesthetics goes beyond mere appearance. It encompasses concepts of harmony, purity, and the appreciation of transience. Japanese art and philosophy often emphasize finding beauty in simplicity and imperfection (wabi-sabi). This kanji appears in many terms related to aesthetics and artistic pursuits.',
-            
             '勇': 'Courage (勇, yū) in Japanese tradition is highly valued and often associated with the samurai spirit. It represents not just physical bravery but moral courage and determination. In Buddhist teachings, courage is one of the virtues needed to overcome suffering and achieve enlightenment.',
-            
             '信': 'Trust and faith (信, shin) are foundational values in Japanese society, where social harmony depends on reliability and honesty. This kanji is used in words relating to confidence, reliability, and belief. In business relationships, trust (信用, shin-yō) is considered essential for successful partnerships.',
-            
             '希': 'Hope (希, ki) in Japanese culture represents aspiration and desire for positive outcomes. It appears in the common word for "hope" (希望, kibō). The concept embodies optimism while acknowledging life's uncertainties - a balance between desire and acceptance that aligns with Buddhist philosophy.',
-            
             '夢': 'The kanji for dream (夢, yume) has significant cultural importance in Japan. Dreams were traditionally considered messages from spirits or premonitions. In modern usage, it often refers to aspirations and goals. Japanese literature and art frequently explore the boundary between dreams and reality.',
-            
             '智': 'Wisdom (智, chi) in Japanese philosophy is more than just knowledge - it represents deep understanding and insight. Influenced by Buddhist concepts, this wisdom includes both practical knowledge and spiritual enlightenment. It's one of the virtues emphasized in traditional education and moral teachings.',
-            
             '和': 'Harmony (和, wa) is perhaps the most fundamental concept in Japanese culture. It represents peace, unity, and balance in social relationships. The idea of maintaining harmony influences Japanese communication styles, conflict resolution, and social structures. This kanji also represents Japan itself in many contexts.',
-            
             '命': 'Life (命, inochi) in Japanese culture carries spiritual significance beyond mere biological existence. Influenced by Shinto and Buddhist beliefs, it represents the sacred nature of all living things and the interconnectedness of existence. It appears in many philosophical discussions about purpose and meaning.',
-            
             '自': 'While this kanji means "self" (自, ji), when combined with "由" (yū) it forms the word for "freedom" (自由, jiyū). In Japanese philosophy, true freedom is often seen as self-mastery rather than absence of constraints. The concept balances individual liberty with social responsibility.',
-            
             '音': 'The kanji for sound (音, oto/on) has deep cultural significance in Japan. Traditional Japanese music emphasizes the beauty of individual sounds and the space between them. In poetry and literature, sound imagery is carefully cultivated, and many Japanese festivals feature distinctive soundscapes that evoke cultural memory.'
         };
         
