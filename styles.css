@@ -301,4 +301,49 @@ ul {
     text-align: center;
     margin: 20px 0;
     font-weight: bold;
+}
+
+/* New styles for natural language processing */
+.results-header {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    border-left: 4px solid #3b7ea1;
+}
+
+.results-header h2 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #333;
+}
+
+.search-keywords {
+    color: #666;
+    font-style: italic;
+    margin-bottom: 5px;
+}
+
+.results-count {
+    font-weight: bold;
+    color: #3b7ea1;
+    margin-top: 10px;
+}
+
+.no-results {
+    text-align: center;
+    padding: 20px;
+    background-color: #f8f8f8;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.no-results h2 {
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.no-results p {
+    color: #888;
+    margin-bottom: 5px;
 } 

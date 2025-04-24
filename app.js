@@ -47,10 +47,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     async function performSearch() {
-        const searchWord = wordInput.value.trim().toLowerCase();
+        const searchInput = wordInput.value.trim();
         
-        if (!searchWord) {
-            alert('Please enter an English word to search.');
+        if (!searchInput) {
+            alert('Please enter some text to search for.');
             return;
         }
 
@@ -61,14 +61,24 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsContainer.innerHTML = '';
         
         try {
-            // Get word variations including synonyms
-            const wordVariations = await getWordVariations(searchWord);
+            // Extract keywords from natural language input
+            const keywords = extractKeywords(searchInput);
+            
+            // Get word variations including synonyms for each keyword
+            const allWordVariations = [];
+            for (const keyword of keywords) {
+                const variations = await getWordVariations(keyword);
+                allWordVariations.push(...variations);
+            }
+            
+            // Remove duplicates
+            const uniqueWordVariations = [...new Set(allWordVariations)];
             
             // Find Kanji matches with expanded word list
-            const matchResults = findKanjiMatches(searchWord, wordVariations);
+            const matchResults = findKanjiMatches(keywords[0], uniqueWordVariations);
             
             // Display results
-            displayResults(matchResults, searchWord, wordVariations);
+            displayResults(matchResults, searchInput, uniqueWordVariations);
         } catch (error) {
             console.error("Error during search:", error);
             resultsContainer.innerHTML = '<p class="error">An error occurred during search. Please try again.</p>';
@@ -526,24 +536,44 @@ document.addEventListener('DOMContentLoaded', () => {
         return dp[m][n];
     }
     
-    function displayResults(results, searchWord, wordVariations) {
+    function displayResults(results, searchInput, wordVariations) {
         if (results.length === 0) {
-            resultsContainer.innerHTML = '<p class="no-results">No matching Kanji found. Try a different word.</p>';
+            resultsContainer.innerHTML = `
+                <div class="no-results">
+                    <h2>No Kanji Found</h2>
+                    <p>No Kanji characters were found that match "${searchInput}".</p>
+                    <p>Try a different word or check your spelling.</p>
+                </div>
+            `;
             return;
         }
         
-        // Add header with search term and included variations
-        const searchHeader = document.createElement('div');
-        searchHeader.className = 'search-header';
+        // Create a header showing extracted keywords
+        const keywords = extractKeywords(searchInput);
+        let keywordText = keywords.join(', ');
         
-        // Create a shortened list of variations for display (to avoid cluttering the UI)
-        const variationsToShow = wordVariations.slice(1, 5); // Skip original word, show up to 4 variations
-        const variationsText = variationsToShow.length > 0 ? 
-            ` (including similar words: ${variationsToShow.join(", ")}${wordVariations.length > 5 ? "..." : ""})` : 
-            '';
+        // Create a summary of other word variations used
+        let variationsText = '';
+        const uniqueVariations = [...new Set(wordVariations.filter(w => !keywords.includes(w)))];
+        if (uniqueVariations.length > 0) {
+            variationsText = `<p class="search-keywords">Related words used: ${uniqueVariations.join(', ')}</p>`;
+        }
         
-        searchHeader.innerHTML = `<h3>Results for "${searchWord}"${variationsText}</h3>`;
-        resultsContainer.appendChild(searchHeader);
+        // Create the results header
+        const resultHeader = `
+            <div class="results-header">
+                <h2>Kanji Matches for "${searchInput}"</h2>
+                <p class="search-keywords">Keywords extracted: ${keywordText}</p>
+                ${variationsText}
+                <p class="results-count">${results.length} results found</p>
+            </div>
+        `;
+        
+        // Sort results by match percentage (highest first)
+        results.sort((a, b) => b.matchPercentage - a.matchPercentage);
+        
+        // Create result items HTML
+        let resultItemsHTML = '';
         
         results.forEach(result => {
             // Skip results with very low match percentages after adjustment
@@ -632,8 +662,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${warningHtml}
             `;
             
-            resultsContainer.appendChild(kanjiCard);
+            resultItemsHTML += kanjiCard.outerHTML;
         });
+        
+        // Create the final results container
+        const resultsContainerContent = `
+            ${resultHeader}
+            <div class="results-container">
+                ${resultItemsHTML}
+            </div>
+        `;
+        
+        resultsContainer.innerHTML = resultsContainerContent;
     }
     
     function showLoading(isLoading) {
@@ -659,5 +699,76 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Scale string similarity to be more conservative
         return Math.pow(stringSimScore, 1.5) * 0.7;
+    }
+
+    /**
+     * Extract meaningful keywords from natural language input
+     * @param {string} input - The natural language input
+     * @return {array} - Array of extracted keywords
+     */
+    function extractKeywords(input) {
+        // Convert to lowercase
+        const text = input.toLowerCase();
+        
+        // Common stop words to filter out
+        const stopWords = [
+            'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 
+            'by', 'about', 'as', 'into', 'like', 'through', 'after', 'over', 'between', 
+            'out', 'of', 'from', 'up', 'down', 'me', 'i', 'my', 'myself', 'we', 'our', 
+            'ours', 'ourselves', 'you', 'your', 'yours', 'yourself', 'yourselves', 'he', 
+            'him', 'his', 'himself', 'she', 'her', 'hers', 'herself', 'it', 'its', 'itself', 
+            'they', 'them', 'their', 'theirs', 'themselves', 'what', 'which', 'who', 'whom', 
+            'this', 'that', 'these', 'those', 'am', 'is', 'are', 'was', 'were', 'be', 'been', 
+            'being', 'have', 'has', 'had', 'having', 'do', 'does', 'did', 'doing', 'would', 
+            'should', 'could', 'ought', 'i\'m', 'you\'re', 'he\'s', 'she\'s', 'it\'s', 
+            'we\'re', 'they\'re', 'i\'ve', 'you\'ve', 'we\'ve', 'they\'ve', 'i\'d', 'you\'d', 
+            'he\'d', 'she\'d', 'we\'d', 'they\'d', 'i\'ll', 'you\'ll', 'he\'ll', 'she\'ll', 
+            'we\'ll', 'they\'ll', 'isn\'t', 'aren\'t', 'wasn\'t', 'weren\'t', 'hasn\'t', 
+            'haven\'t', 'hadn\'t', 'doesn\'t', 'don\'t', 'didn\'t', 'won\'t', 'wouldn\'t', 
+            'shan\'t', 'shouldn\'t', 'can\'t', 'cannot', 'couldn\'t', 'mustn\'t', 'let\'s', 
+            'that\'s', 'who\'s', 'what\'s', 'here\'s', 'there\'s', 'when\'s', 'where\'s', 
+            'why\'s', 'how\'s', 'find', 'me', 'that', 'represent', 'am', 'is', 'are', 'kanji'
+        ];
+        
+        // Special phrases to extract meaningful concepts
+        const specialPhrases = {
+            'free spirited': ['freedom', 'spirit', 'independent'],
+            'free spirit': ['freedom', 'spirit', 'independent'],
+            'strong willed': ['determination', 'strength', 'willpower'],
+            'never give up': ['perseverance', 'determination', 'endurance'],
+            'inner peace': ['peace', 'tranquility', 'harmony'],
+            'good luck': ['fortune', 'luck', 'prosperity'],
+            'good fortune': ['fortune', 'luck', 'prosperity'],
+        };
+        
+        // Check for special phrases first
+        for (const [phrase, keywords] of Object.entries(specialPhrases)) {
+            if (text.includes(phrase)) {
+                return keywords;
+            }
+        }
+        
+        // Preprocess: remove punctuation and split into words
+        const words = text.replace(/[^\w\s]/g, '').split(/\s+/);
+        
+        // Filter out stop words and extract meaningful keywords
+        const keywords = words.filter(word => !stopWords.includes(word));
+        
+        // If we have no keywords after filtering, use the first non-stopword
+        if (keywords.length === 0) {
+            for (const word of words) {
+                if (!stopWords.includes(word)) {
+                    keywords.push(word);
+                    break;
+                }
+            }
+        }
+        
+        // If we still have no keywords, use the first word
+        if (keywords.length === 0 && words.length > 0) {
+            keywords.push(words[0]);
+        }
+        
+        return keywords;
     }
 }); 

@@ -4,7 +4,8 @@ A web application that helps you find the perfect Kanji character for your tatto
 
 ## Features
 
-- **Search by English Word**: Enter any English word to find matching Kanji characters
+- **Natural Language Input**: Enter phrases, questions, or concepts like "find me a Kanji for free spirited"
+- **Keyword Extraction**: Automatically extracts meaningful keywords from your input
 - **Synonym Expansion**: Automatically searches for related words to find more Kanji options
 - **Accurate Match Percentages**: Advanced algorithm calculates how well each Kanji matches your search
 - **Multiple Meaning Support**: Shows all possible meanings of each Kanji with individual match scores
@@ -13,11 +14,12 @@ A web application that helps you find the perfect Kanji character for your tatto
 
 ## How It Works
 
-1. **Input Processing**: Takes your English word and finds related synonyms
-2. **Semantic Matching**: Uses a sophisticated algorithm to match words to Kanji meanings
-3. **Meaning Analysis**: Considers all possible meanings and their match percentages
-4. **Connotation Checking**: Scans for potential negative meanings that might be undesirable
-5. **Result Ranking**: Sorts Kanji by match quality with transparent scoring
+1. **Natural Language Processing**: Analyzes your input to extract meaningful keywords and concepts
+2. **Synonym Expansion**: Finds related words and concepts to broaden the search
+3. **Semantic Matching**: Uses a sophisticated algorithm to match words to Kanji meanings
+4. **Meaning Analysis**: Considers all possible meanings and their match percentages
+5. **Connotation Checking**: Scans for potential negative meanings that might be undesirable
+6. **Result Ranking**: Sorts Kanji by match quality with transparent scoring
 
 ## Match Quality Indicators
 
