@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanji Tattoo Finder</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Kanji Tattoo Finder</h1>
+        <p class="subtitle">Find the perfect Kanji character for your tattoo</p>
+        
+        <div class="search-box">
+            <input type="text" id="word-input" placeholder="Enter an English word...">
+            <button id="search-button">Search</button>
+        </div>
+        
+        <div id="results" class="results-container">
+            <!-- Results will be displayed here -->
+        </div>
+        
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Searching for Kanji...</p>
+        </div>
+
+        <div class="about-section">
+            <h2>About This Tool</h2>
+            <p>This app helps you find Kanji characters that match the meaning of English words. Each suggestion includes:</p>
+            <ul>
+                <li>Kanji character</li>
+                <li>Match percentage to your search term</li>
+                <li>All possible meanings with their match scores</li>
+                <li>Pronunciation guide</li>
+                <li>Common usage examples</li>
+            </ul>
+            
+            <h3>Understanding the Results</h3>
+            <ul>
+                <li><span class="highlight-green">Green border</span>: Perfect match (80%+ match) - Highly recommended for tattoos</li>
+                <li><span class="highlight-blue">Blue border</span>: Good match (60-79% match) - Suitable for tattoos</li>
+                <li><span class="highlight-orange">Orange border</span>: Warning - Has negative meanings related to your search</li>
+            </ul>
+            
+            <h3>Warning System</h3>
+            <p>Kanji often have multiple meanings and interpretations. Our tool will:</p>
+            <ul>
+                <li>Show all possible meanings of a Kanji with their match percentages</li>
+                <li>Alert you with a ⚠️ warning if a Kanji has negative connotations that match your search</li>
+                <li>Provide an ℹ️ informational note when a Kanji has potential negative meanings</li>
+            </ul>
+            
+            <p class="disclaimer">Always consult with a native Japanese speaker or professional tattoo artist before getting a Kanji tattoo. The meanings of Kanji can vary depending on context and combinations.</p>
+        </div>
+    </div>
+    
+    <script src="kanji-data.js"></script>
+    <script src="app.js"></script>
+</body>
+</html> 
