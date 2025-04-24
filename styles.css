@@ -88,6 +88,7 @@ button:hover {
     background-color: white;
     position: relative;
     overflow: hidden;
+    padding-bottom: 10px;
 }
 
 .kanji-card:hover {
@@ -346,4 +347,47 @@ ul {
 .no-results p {
     color: #888;
     margin-bottom: 5px;
+}
+
+/* Topic relevance styling */
+.topic-relevance {
+    margin: 5px 0 10px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 13px;
+    display: inline-block;
+}
+
+.topic-relevance.high {
+    background-color: rgba(76, 175, 80, 0.15);
+    color: #2e7d32;
+    border-left: 3px solid #4CAF50;
+}
+
+.topic-relevance.medium {
+    background-color: rgba(255, 193, 7, 0.15);
+    color: #ff8f00;
+    border-left: 3px solid #FFC107;
+}
+
+.topic-relevance.low {
+    background-color: rgba(244, 67, 54, 0.15);
+    color: #c62828;
+    border-left: 3px solid #F44336;
+}
+
+.topic-mismatch {
+    border-left: 4px solid #F44336 !important;
+}
+
+.caution-box.topic-warning {
+    background-color: #ffebee;
+    border-left: 3px solid #F44336;
+}
+
+.search-topics {
+    color: #3b7ea1;
+    font-weight: 500;
+    margin-bottom: 5px;
+    font-size: 14px;
 } 

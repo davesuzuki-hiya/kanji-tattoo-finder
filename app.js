@@ -46,6 +46,37 @@ document.addEventListener('DOMContentLoaded', () => {
         'good': ['virtuous', 'righteous', 'moral', 'upright', 'benevolent', 'noble']
     };
 
+    // Add semantic topic categories to detect meaning mismatches
+    const semanticTopics = {
+        // Positive qualities and emotions
+        "positive": ["love", "happy", "joy", "peace", "beauty", "hope", "kind", "gentle", "compassion", 
+                    "friendship", "harmony", "gratitude", "blessed", "optimism", "serenity"],
+        
+        // Travel and movement
+        "travel": ["travel", "travelling", "journey", "adventure", "explore", "wander", "voyage", "trip", "discover",
+                  "touring", "visiting", "sightseeing", "excursion", "expedition", "trek", "roaming", "wanderlust"],
+        
+        // Nature and outdoors
+        "nature": ["nature", "mountain", "ocean", "river", "forest", "flower", "tree", "sky", "sun", 
+                  "moon", "star", "earth", "garden", "landscape", "wilderness"],
+        
+        // Negative concepts
+        "negative": ["evil", "devil", "demon", "death", "fear", "hate", "anger", "rage", "jealousy",
+                    "envy", "greed", "cruel", "pain", "suffering", "destruction"],
+        
+        // Strength and power
+        "strength": ["strong", "power", "might", "force", "energy", "vigor", "robust", "tough",
+                    "courage", "brave", "bold", "heroic", "warrior", "determined"],
+        
+        // Wisdom and intelligence
+        "wisdom": ["wisdom", "knowledge", "intelligent", "smart", "clever", "insight", "understanding",
+                  "enlightenment", "awareness", "thoughtful", "mindful", "contemplative"],
+        
+        // Freedom and independence
+        "freedom": ["free", "freedom", "liberty", "independence", "autonomous", "unrestrained",
+                   "liberated", "unrestricted", "emancipated", "sovereign", "self-determination"]
+    };
+
     async function performSearch() {
         const searchInput = wordInput.value.trim();
         
@@ -109,6 +140,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function findKanjiMatchesImproved(keywords, wordVariations) {
         const results = [];
         const processedKanji = new Set(); // To avoid duplicate Kanji in results
+        
+        // Identify the topics of the search query
+        const searchTopics = identifyTopics(keywords);
         
         // Loop through each kanji in our database
         kanjiDatabase.forEach(kanjiData => {
@@ -188,12 +222,24 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Only include results with a match score above threshold
             if (bestMatchScore >= 0.35) {
+                // Apply topic-based scoring adjustments
+                const topicScore = calculateTopicCompatibility(searchTopics, bestMatchWord, kanjiData.meanings);
+                
                 // Apply a more nuanced scoring system to the final percentage
                 let adjustedScore = adjustMatchScore(bestMatchScore, meaningMatches, bestMatchKeyword);
+                
+                // Apply the topic-based adjustment (penalize topic mismatches)
+                adjustedScore = adjustedScore * topicScore;
                 
                 // Increase score for matches to primary keywords (extracted concepts)
                 if (keywords.includes(bestMatchKeyword)) {
                     adjustedScore = Math.min(1.0, adjustedScore * 1.15); // Boost by 15%
+                }
+                
+                // Check for conceptual contradictions (e.g., "love" matching with "devil")
+                const contradictionScore = checkConceptualContradiction(searchTopics, kanjiData.meanings);
+                if (contradictionScore < 1.0) {
+                    adjustedScore = adjustedScore * contradictionScore;
                 }
                 
                 // Check negative connotations against all keywords
@@ -208,29 +254,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
                 
-                results.push({
-                    kanji: kanjiData.kanji,
-                    matchPercentage: Math.round(adjustedScore * 100),
-                    matchedMeaning: bestMatchWord,
-                    matchedKeyword: bestMatchKeyword,
-                    pronunciation: kanjiData.pronunciation,
-                    commonUsage: kanjiData.commonUsage,
-                    meaningMatches: meaningMatches.sort((a, b) => b.score - a.score),
-                    negativeConnotations: kanjiData.negativeConnotations,
-                    negativeMatch: highestNegativeMatch,
-                    rawScore: bestMatchScore,
-                    matchSource: !keywords.includes(bestMatchKeyword) ? bestMatchKeyword : null
-                });
-                
-                processedKanji.add(kanjiData.kanji);
+                // Apply a relevance threshold - only include results above a certain score
+                // This helps eliminate completely irrelevant matches
+                if (adjustedScore >= 0.30) {
+                    results.push({
+                        kanji: kanjiData.kanji,
+                        matchPercentage: Math.round(adjustedScore * 100),
+                        matchedMeaning: bestMatchWord,
+                        matchedKeyword: bestMatchKeyword,
+                        pronunciation: kanjiData.pronunciation,
+                        commonUsage: kanjiData.commonUsage,
+                        meaningMatches: meaningMatches.sort((a, b) => b.score - a.score),
+                        negativeConnotations: kanjiData.negativeConnotations,
+                        negativeMatch: highestNegativeMatch,
+                        rawScore: bestMatchScore,
+                        matchSource: !keywords.includes(bestMatchKeyword) ? bestMatchKeyword : null,
+                        topicCompatibility: topicScore
+                    });
+                    
+                    processedKanji.add(kanjiData.kanji);
+                }
             }
         });
         
         // Apply a more conceptual filtering to remove literal matches that don't fit
         // For example, this would filter out "freeze" when searching for "free spirited"
         const filteredResults = results.filter(result => {
-            // If the match is to a primary keyword, keep it
-            if (keywords.includes(result.matchedKeyword)) {
+            // If the match is to a primary keyword, keep it (unless it's a severe topic mismatch)
+            if (keywords.includes(result.matchedKeyword) && result.topicCompatibility > 0.6) {
                 return true;
             }
             
@@ -242,8 +293,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             
-            // For high-scoring matches, be more lenient
-            if (result.matchPercentage >= 85) {
+            // For high-scoring matches that also have good topic compatibility, be more lenient
+            if (result.matchPercentage >= 85 && result.topicCompatibility >= 0.8) {
                 return true;
             }
             
@@ -259,6 +310,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (isPossibleHomonym) {
                     return false;
                 }
+            }
+            
+            // Filter out matches with very low topic compatibility (likely irrelevant)
+            if (result.topicCompatibility < 0.5) {
+                return false;
             }
             
             return true;
@@ -603,6 +659,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const keywords = extractKeywords(searchInput);
         let keywordText = keywords.join(', ');
         
+        // Identify the topics for explanation
+        const searchTopics = identifyTopics(keywords);
+        let topicsText = '';
+        if (searchTopics.length > 0) {
+            topicsText = `<p class="search-topics">Identified topics: ${searchTopics.join(', ')}</p>`;
+        }
+        
         // Create a summary of other word variations used
         let variationsText = '';
         const uniqueVariations = [...new Set(wordVariations.filter(w => !keywords.includes(w)))];
@@ -615,6 +678,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="results-header">
                 <h2>Kanji Matches for "${searchInput}"</h2>
                 <p class="search-keywords">Keywords extracted: ${keywordText}</p>
+                ${topicsText}
                 ${variationsText}
                 <p class="results-count">${results.length} results found</p>
             </div>
@@ -642,6 +706,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 kanjiCard.classList.add('perfect-match');
             } else if (result.matchPercentage >= 55) {
                 kanjiCard.classList.add('good-match');
+            }
+            
+            // Add topic mismatch class if topic compatibility is low
+            if (result.topicCompatibility < 0.7) {
+                kanjiCard.classList.add('topic-mismatch');
             }
             
             let matchQuality;
@@ -676,6 +745,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 matchSourceHtml = `<div class="match-source">Matched via similar word: "${result.matchSource}"</div>`;
             }
             
+            // Create topical relevance indicator
+            let topicRelevanceHtml = '';
+            const topicPercentage = Math.round(result.topicCompatibility * 100);
+            if (result.topicCompatibility < 0.7) {
+                topicRelevanceHtml = `<div class="topic-relevance low">Topic relevance: ${topicPercentage}%</div>`;
+            } else if (result.topicCompatibility < 1.0) {
+                topicRelevanceHtml = `<div class="topic-relevance medium">Topic relevance: ${topicPercentage}%</div>`;
+            } else {
+                topicRelevanceHtml = `<div class="topic-relevance high">Topic relevance: ${topicPercentage}%</div>`;
+            }
+            
             // Create warning HTML if necessary
             let warningHtml = '';
             if (result.negativeConnotations.exists) {
@@ -699,10 +779,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             
+            // Add conceptual mismatch warning if applicable
+            if (result.topicCompatibility < 0.6) {
+                warningHtml += `
+                <div class="caution-box topic-warning">
+                    <div class="caution-icon">⚠️</div>
+                    <div class="caution-text">
+                        <strong>Topic Mismatch:</strong> This kanji may not be conceptually related to your search.
+                    </div>
+                </div>`;
+            }
+            
             kanjiCard.innerHTML = `
                 <div class="kanji-character">${result.kanji}</div>
                 <div class="match-percentage">${result.matchPercentage}% Match</div>
                 <div class="match-indicator">${matchQuality}</div>
+                ${topicRelevanceHtml}
                 ${matchSourceHtml}
                 <div class="kanji-info">
                     <div><strong>Primary meaning:</strong> ${result.matchedMeaning}</div>
@@ -769,6 +861,15 @@ document.addEventListener('DOMContentLoaded', () => {
             'independent': ['freedom', 'self-reliant', 'autonomous', 'self-sufficient'],
             'liberty': ['freedom', 'independence', 'autonomy', 'emancipation'],
             
+            // Travel concepts
+            'travel': ['journey', 'voyage', 'adventure', 'explore', 'discovery', 'wanderlust'],
+            'travelling': ['journey', 'voyage', 'adventure', 'explore', 'discovery', 'wanderlust'],
+            'journey': ['travel', 'voyage', 'adventure', 'path', 'expedition', 'trek'],
+            'adventure': ['journey', 'exploration', 'excitement', 'discovery', 'expedition'],
+            'exploring': ['discover', 'adventure', 'journey', 'search', 'expedition'],
+            'love to travel': ['journey', 'adventure', 'explore', 'wanderlust', 'discovery'],
+            'world traveler': ['journey', 'adventure', 'explore', 'global', 'wanderlust'],
+            
             // Strength/Power concepts
             'strong willed': ['determination', 'resolve', 'perseverance', 'tenacity', 'willpower'],
             'inner strength': ['resilience', 'fortitude', 'endurance', 'courage', 'power'],
@@ -800,6 +901,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Love concepts
             'love': ['affection', 'compassion', 'devotion', 'adoration', 'fondness'],
             'loving': ['affectionate', 'caring', 'devoted', 'tender', 'warm'],
+            'love for': ['affection', 'passion', 'appreciation', 'fondness'],
+            'i love': ['passion', 'affection', 'appreciation', 'fondness'],
             
             // Beauty concepts
             'beautiful': ['beauty', 'attractive', 'lovely', 'elegant', 'pleasing'],
@@ -954,5 +1057,126 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         return false;
+    }
+
+    /**
+     * Identify the semantic topics present in the search keywords
+     * @param {array} keywords - Search keywords
+     * @return {array} - Array of topics
+     */
+    function identifyTopics(keywords) {
+        const topics = [];
+        
+        for (const keyword of keywords) {
+            for (const [topic, words] of Object.entries(semanticTopics)) {
+                if (words.includes(keyword.toLowerCase())) {
+                    if (!topics.includes(topic)) {
+                        topics.push(topic);
+                    }
+                }
+            }
+        }
+        
+        return topics;
+    }
+
+    /**
+     * Calculate how compatible the kanji's meanings are with the search topics
+     * @param {array} searchTopics - Topics extracted from search keywords
+     * @param {string} bestMatch - Best matching meaning
+     * @param {array} allMeanings - All meanings of the kanji
+     * @return {number} - Compatibility score between 0.4 and 1.0
+     */
+    function calculateTopicCompatibility(searchTopics, bestMatch, allMeanings) {
+        // If no topics were identified, no penalty
+        if (searchTopics.length === 0) {
+            return 1.0;
+        }
+        
+        // Identify the topics of the kanji meanings
+        const kanjiTopics = [];
+        
+        // Check the best match first (higher weight)
+        for (const [topic, words] of Object.entries(semanticTopics)) {
+            if (words.some(word => bestMatch.includes(word))) {
+                if (!kanjiTopics.includes(topic)) {
+                    kanjiTopics.push(topic);
+                }
+            }
+        }
+        
+        // Then check all other meanings
+        for (const meaning of allMeanings) {
+            for (const [topic, words] of Object.entries(semanticTopics)) {
+                if (words.some(word => meaning.includes(word))) {
+                    if (!kanjiTopics.includes(topic)) {
+                        kanjiTopics.push(topic);
+                    }
+                }
+            }
+        }
+        
+        // Calculate how many search topics match with kanji topics
+        let matchingTopics = 0;
+        for (const searchTopic of searchTopics) {
+            if (kanjiTopics.includes(searchTopic)) {
+                matchingTopics++;
+            }
+        }
+        
+        // Calculate the compatibility score
+        if (searchTopics.length > 0) {
+            const rawScore = matchingTopics / searchTopics.length;
+            
+            // Apply a curve to the score to make it more impactful
+            // A score of 0 becomes 0.4 (significant penalty but not total rejection)
+            // A score of 1.0 remains 1.0 (no penalty)
+            return 0.4 + (rawScore * 0.6);
+        }
+        
+        return 1.0; // No topics to match, so no penalty
+    }
+
+    /**
+     * Check for direct conceptual contradictions between search topics and kanji meanings
+     * @param {array} searchTopics - Topics from the search keywords
+     * @param {array} meanings - All meanings of the kanji
+     * @return {number} - Adjustment factor between 0.1 and 1.0
+     */
+    function checkConceptualContradiction(searchTopics, meanings) {
+        // Define opposing concept pairs that should significantly reduce relevance
+        const opposingConcepts = {
+            "positive": "negative",
+            "negative": "positive",
+            "love": "hate",
+            "peace": "war",
+            "good": "evil"
+        };
+        
+        // If "travel" is in search topics but meanings contain "devil" or "demon", apply penalty
+        if (searchTopics.includes("travel") || searchTopics.includes("positive")) {
+            for (const meaning of meanings) {
+                if (meaning.includes("devil") || meaning.includes("demon") || meaning.includes("evil")) {
+                    return 0.1; // Severe penalty for complete mismatch
+                }
+            }
+        }
+        
+        // Check for other opposing concepts
+        for (const searchTopic of searchTopics) {
+            if (opposingConcepts[searchTopic]) {
+                const opposingTopic = opposingConcepts[searchTopic];
+                
+                // Check if any meaning belongs to the opposing topic
+                for (const meaning of meanings) {
+                    if (semanticTopics[opposingTopic] && 
+                        semanticTopics[opposingTopic].some(word => meaning.includes(word))) {
+                        return 0.3; // Strong penalty for conceptual contradiction
+                    }
+                }
+            }
+        }
+        
+        return 1.0; // No contradictions found
     }
 }); 
