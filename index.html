@@ -4,103 +4,88 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kanji Tattoo Finder</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .kanji-container {
-            display: flex;
-            justify-content: center;
-            margin: 40px 0;
-        }
-        .big-kanji {
-            font-size: 100px;
-            font-family: "Noto Sans JP", sans-serif;
-            margin: 0 15px;
-        }
-        .search-box {
-            display: flex;
-            margin: 30px 0;
-        }
-        input {
-            flex: 1;
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ddd;
-            border-radius: 4px 0 0 4px;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 0 4px 4px 0;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button:hover {
-            background-color: #2980b9;
-        }
-        .loading {
-            display: none;
-            text-align: center;
-            margin: 20px 0;
-        }
-        .results {
-            margin-top: 30px;
-        }
-        .feature-list {
-            background-color: #f8f9fa;
-            padding: 20px;
-            border-radius: 5px;
-            margin: 30px 0;
-        }
-        .feature-list h2 {
-            margin-top: 0;
-        }
-    </style>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+    <!-- Icon Font -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>カンジ Kanji Tattoo Finder</h1>
-    
-    <div class="kanji-container">
-        <div class="big-kanji">愛</div>
-        <div class="big-kanji">強</div>
-        <div class="big-kanji">勇</div>
-        <div class="big-kanji">美</div>
-    </div>
-    
-    <div class="search-box">
-        <input type="text" id="word-input" placeholder="Enter a word or concept (e.g., strength, peace, courage)">
-        <button id="search-button">Search</button>
-    </div>
-    
-    <div id="loading" class="loading">Searching for matching kanji...</div>
-    
-    <div id="results" class="results"></div>
-    
-    <div class="feature-list">
-        <h2>Key Features</h2>
-        <ul>
-            <li><strong>Semantic Search</strong> - Find kanji based on meaning and concepts</li>
-            <li><strong>Negative Connotation Warnings</strong> - Get alerted to potentially problematic meanings</li>
-            <li><strong>Cultural Context</strong> - Understand how the kanji is used in Japanese culture</li>
-            <li><strong>Stroke Order</strong> - See how to properly write each character</li>
-            <li><strong>Tattoo Examples</strong> - View reference images for tattoo designs</li>
-        </ul>
-    </div>
+    <div class="container">
+        <header>
+            <h1>Kanji Tattoo Finder</h1>
+            <p class="subtitle">Find the perfect Kanji character for your tattoo</p>
+        </header>
+        
+        <div class="search-box">
+            <input type="text" id="word-input" placeholder="Enter phrase or concept (e.g., 'free spirited')">
+            <button id="search-button">
+                <i class="ri-search-line"></i>
+                Search
+            </button>
+        </div>
+        
+        <div id="results" class="results-container">
+            <!-- Results will be displayed here -->
+        </div>
+        
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p>Searching for Kanji...</p>
+        </div>
 
+        <!-- Kanji detail modal -->
+        <div id="kanji-detail-modal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Kanji Details</h2>
+                    <span class="close-modal"><i class="ri-close-line"></i></span>
+                </div>
+                <div class="modal-body" id="kanji-detail-container">
+                    <!-- Kanji details will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="about-section">
+            <h2>About This Tool</h2>
+            <p>This app helps you find Kanji characters that match your desired meaning or concept. You can enter:</p>
+            <ul>
+                <li><i class="ri-text-spacing"></i> Simple words like "love" or "strength"</li>
+                <li><i class="ri-double-quotes-l"></i> Phrases like "free spirited" or "inner peace"</li>
+                <li><i class="ri-question-line"></i> Questions like "find me a Kanji for courage"</li>
+                <li><i class="ri-file-list-line"></i> Descriptions like "a symbol that represents determination"</li>
+            </ul>
+            
+            <h3>Understanding the Results</h3>
+            <ul>
+                <li><span class="highlight-green">Green border</span>: Perfect match (80%+ match) - Highly recommended for tattoos</li>
+                <li><span class="highlight-blue">Blue border</span>: Good match (60-79% match) - Suitable for tattoos</li>
+                <li><span class="highlight-orange">Orange border</span>: Warning - Has negative meanings related to your search</li>
+            </ul>
+            
+            <h3>Warning System</h3>
+            <p>Kanji often have multiple meanings and interpretations. Our tool will:</p>
+            <ul>
+                <li><i class="ri-list-check-2"></i> Show all possible meanings of a Kanji with their match percentages</li>
+                <li><i class="ri-error-warning-line"></i> Alert you with a warning if a Kanji has negative connotations that match your search</li>
+                <li><i class="ri-information-line"></i> Provide an informational note when a Kanji has potential negative meanings</li>
+            </ul>
+            
+            <p class="disclaimer"><i class="ri-information-line"></i> Always consult with a native Japanese speaker or professional tattoo artist before getting a Kanji tattoo. The meanings of Kanji can vary depending on context and combinations.</p>
+        </div>
+    </div>
+    
+    <footer>
+        <div class="footer-content">
+            <p>Kanji Tattoo Finder • Helping you find the perfect Japanese character for your tattoo</p>
+        </div>
+    </footer>
+    
+    <script src="kanji-data.js"></script>
     <script src="app.js"></script>
 </body>
 </html> 
