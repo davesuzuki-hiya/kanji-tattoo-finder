@@ -61,6 +61,7 @@ The detailed view provides comprehensive information about each Kanji:
 - Custom semantic matching algorithm
 - Integrated synonym expansion
 - Responsive design
+- Deployed on GitHub Pages
 
 ## Usage
 
