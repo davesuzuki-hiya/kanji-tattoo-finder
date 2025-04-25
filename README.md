@@ -66,6 +66,8 @@ The detailed view provides comprehensive information about each Kanji:
 
 Simply open `index.html` in any modern web browser to use the application. No server or installation required.
 
+You can also access the live version at: https://davesuzuki-hiya.github.io/kanji-tattoo-finder/
+
 ## License
 
 MIT License - Feel free to use, modify, and distribute as needed.
